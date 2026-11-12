@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.next
+**/.storage
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.screenshots
+*.log
+.npm-install.log
+*.html
+!apps/**/*.html

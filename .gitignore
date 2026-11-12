@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# secrets and local config: never commit
+.env
+.env.*
+!.env.example
+
+# local document storage (STORAGE_DRIVER=local)
+.storage/
+apps/api/.storage/
+
+# test artefacts
+playwright-report/
+test-results/
+.screenshots/

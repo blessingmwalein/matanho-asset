@@ -1,0 +1,76 @@
+# Render Blueprint for Matanho Nexus: two Docker web services (NestJS API + Next.js web) backed by Neon PostgreSQL.
+# NOTE: prepared configuration only. It has NOT been deployed or verified.
+#
+# How to use: push this repo to GitHub/GitLab, then Render > New > Blueprint > select the repo.
+# Fill every `sync: false` variable in the Render dashboard (secrets are never stored in this file).
+# Free-tier web services sleep when idle (cold start ~30-60s): open both URLs a few minutes before a demo.
+services:
+  - type: web
+    name: nexus-api
+    runtime: docker
+    # Ohio matches a Neon project in AWS us-east-2. Change both services if your Neon region differs.
+    region: ohio
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      # Neon: pooled string for the app, direct string for migrations
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      # Public URL of the web service, e.g. https://nexus-web.onrender.com
+      - key: CORS_ORIGIN
+        sync: false
+      # db = documents stored in PostgreSQL (durable, no object storage needed). Use s3 + S3_* for a private bucket.
+      - key: STORAGE_DRIVER
+        value: db
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"
+      # Demo data: seeds only when the database is empty. Set both to "false" for anything that is not a demo.
+      - key: SEED_DEMO_USERS
+        value: "true"
+      - key: SEED_ON_BOOT
+        value: "true"
+      - key: DEMO_PASSWORD
+        sync: false
+
+  - type: web
+    name: nexus-web
+    runtime: docker
+    region: ohio
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Public URL of the API service, e.g. https://nexus-api.onrender.com (used server-side by the Next.js proxy)
+      - key: API_URL
+        sync: false
+      - key: NEXT_PUBLIC_SHOW_DEMO_LOGINS
+        value: "true"
+      - key: NEXT_PUBLIC_DEMO_PASSWORD
+        sync: false

@@ -1,0 +1,27 @@
+{
+  "name": "matanho-nexus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Matanho Nexus: institutional asset management MVP (NestJS API + Next.js portals)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @nexus/shared",
+    "dev": "concurrently -n shared,api,web -c gray,blue,green \"npm run dev -w @nexus/shared\" \"npm run start:dev -w @nexus/api\" \"npm run dev -w @nexus/web\"",
+    "build": "npm run build:shared && npm run build -w @nexus/api && npm run build -w @nexus/web",
+    "typecheck": "npm run build:shared && npm run typecheck -w @nexus/api && npm run typecheck -w @nexus/web",
+    "db:generate": "npm run prisma:generate -w @nexus/api",
+    "db:migrate": "npm run prisma:deploy -w @nexus/api",
+    "db:seed": "npm run seed:build -w @nexus/api",
+    "db:reset-demo": "npm run seed:build:reset -w @nexus/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.0"
+  }
+}

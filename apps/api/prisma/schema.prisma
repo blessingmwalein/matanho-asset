@@ -1,0 +1,1138 @@
+// Matanho Nexus: PostgreSQL (Neon) schema.
+// Money: Decimal(20,2). Quantities/prices: Decimal(24,6)/(20,6). Percent: Decimal(9,4).
+// Enums here MUST mirror packages/shared/src/enums.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ═══════════════════════════════ ENUMS ═══════════════════════════════
+
+enum OrgType {
+  ASSET_MANAGER
+  INVESTOR
+  CUSTODIAN
+  PORTFOLIO_COMPANY
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  INVITED
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  INFORMATION_REQUESTED
+  RESUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum NoteKind {
+  NOTE
+  INFO_REQUEST
+  DECISION
+  APPLICANT_RESPONSE
+}
+
+enum InvestorType {
+  INSTITUTIONAL
+  PENSION_FUND
+  CORPORATE_TREASURY
+  FAMILY_OFFICE
+  TRUST_FOUNDATION
+  FUND_VEHICLE
+  INDIVIDUAL_HNW
+}
+
+enum InvestorStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum KycStatus {
+  PENDING
+  IN_REVIEW
+  VERIFIED
+  EXPIRED
+  REJECTED
+}
+
+enum RiskRating {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DeclarationAnswer {
+  NO
+  YES
+  UNKNOWN
+}
+
+enum DocumentCategory {
+  REGISTRATION
+  IDENTITY
+  PROOF_OF_ADDRESS
+  OWNERSHIP_EVIDENCE
+  BANK_VERIFICATION
+  SOURCE_OF_FUNDS
+  TAX
+  AUTHORITY_TO_INVEST
+  ADDITIONAL
+  STATEMENT
+  INVESTOR_REPORT
+  NOTICE
+  CAPITAL_CALL
+  AUDITED_FINANCIALS
+  DAY_END_FILE
+  MANAGEMENT_ACCOUNTS
+  BOARD_PACK
+  COMPLIANCE_EVIDENCE
+  REPORTING_SUPPORT
+  OTHER
+}
+
+enum DocumentStatus {
+  DRAFT
+  UPLOADED
+  UNDER_REVIEW
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+enum DocumentAudience {
+  INTERNAL
+  INVESTOR
+  COMPANY
+  CUSTODIAN
+}
+
+enum AssetClass {
+  EQUITY
+  FIXED_INCOME
+  CASH
+  PRIVATE_EQUITY
+  PRIVATE_CREDIT
+  REAL_ESTATE
+  OTHER
+}
+
+enum PortfolioType {
+  MANAGED_ACCOUNT
+  SEGREGATED_MANDATE
+  ADVISORY
+  LIQUIDITY
+}
+
+enum PortfolioStatus {
+  ACTIVE
+  ON_HOLD
+  CLOSED
+}
+
+enum AccountType {
+  MANDATE
+  FUND_INTEREST
+}
+
+enum HoldingStatus {
+  DRAFT
+  CONFIRMED
+}
+
+enum HoldingSource {
+  MANUAL
+  TRANSACTION
+  SEED
+  CUSTODIAN
+}
+
+enum TransactionType {
+  TRADE
+  CASH_IN
+  CASH_OUT
+  DIVIDEND
+  FEE
+}
+
+enum Side {
+  BUY
+  SELL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum ReconStatus {
+  NOT_STARTED
+  MATCHED
+  UNMATCHED
+  DIFFERENCE
+  PENDING_REVIEW
+  RESOLVED
+}
+
+enum ReconItemKind {
+  EXECUTION
+  DAY_END
+  INTERNAL_ORPHAN
+}
+
+enum ExceptionType {
+  NO_INTERNAL_MATCH
+  NO_CUSTODIAN_RECORD
+  PROBABLE_MATCH
+  QUANTITY_DIFFERENCE
+  PRICE_DIFFERENCE
+  CURRENCY_DIFFERENCE
+  SETTLEMENT_DATE_DIFFERENCE
+  CASH_DIFFERENCE
+  HOLDINGS_VALUE_DIFFERENCE
+  TRADE_COUNT_DIFFERENCE
+}
+
+enum ExceptionStatus {
+  OPEN
+  RESOLVED
+}
+
+enum BatchStatus {
+  OPEN
+  COMPLETED
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+}
+
+enum RequirementCategory {
+  MANAGEMENT_ACCOUNTS
+  OPERATING_KPIS
+  DEBT_CASH
+  BOARD_PACK
+  COMPLIANCE
+}
+
+enum RequirementStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETE
+}
+
+enum CompanySubmissionStatus {
+  DRAFT
+  SUBMITTED
+  QUESTIONS_OPEN
+  CORRECTIONS_REQUESTED
+  RESUBMITTED
+  ACCEPTED
+}
+
+enum QuestionStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+enum FundType {
+  PRIVATE_EQUITY
+  PRIVATE_CREDIT
+}
+
+enum CapitalEventKind {
+  CALL
+  DISTRIBUTION
+}
+
+enum CapitalEventStatus {
+  ISSUED
+  FUNDED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// ═══════════════════════════════ IDENTITY ═══════════════════════════════
+
+model Organisation {
+  id        String   @id @default(cuid())
+  type      OrgType
+  name      String
+  slug      String   @unique
+  legalName String?
+  country   String?
+  email     String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships       OrganisationMembership[]
+  investor          Investor?
+  company           PortfolioCompany?
+  custodianAccounts CustodianAccount[]
+  documentsOwned    Document[]
+  notifications     Notification[]
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  memberships        OrganisationMembership[]
+  managedInvestors   Investor[]                @relation("RelationshipManager")
+  managedPortfolios  Portfolio[]               @relation("PortfolioManager")
+  notifications      Notification[]
+  acknowledgements   CapitalCallAcknowledgement[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  orgType     OrgType
+  permissions String[]
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships OrganisationMembership[]
+}
+
+model OrganisationMembership {
+  id             String   @id @default(cuid())
+  userId         String
+  organisationId String
+  roleId         String
+  isPrimary      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, organisationId])
+  @@index([organisationId])
+}
+
+// ═══════════════════════════════ INVESTOR ═══════════════════════════════
+
+model Investor {
+  id                     String         @id @default(cuid())
+  ref                    String         @unique // INV-0001
+  organisationId         String         @unique
+  applicationId          String?        @unique // prevents duplicate client creation
+  legalName              String
+  investorType           InvestorType
+  registrationNumber     String
+  country                String
+  taxIdentificationNumber String?
+  registeredAddress      String
+  contactName            String
+  email                  String
+  phone                  String?
+  investmentObjective    String?
+  classification         String?
+  baseCurrency           String         @default("USD")
+  kycStatus              KycStatus      @default(PENDING)
+  riskRating             RiskRating?
+  kycReviewedAt          DateTime?
+  kycNextReviewAt        DateTime?
+  relationshipManagerId  String?
+  status                 InvestorStatus @default(ACTIVE)
+  bankName               String?
+  bankAccountHolder      String?
+  bankAccountMasked      String?
+  bankCurrency           String?
+  swiftBic               String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  createdById            String?
+
+  organisation        Organisation         @relation(fields: [organisationId], references: [id])
+  application         InvestorApplication? @relation(fields: [applicationId], references: [id])
+  relationshipManager User?                @relation("RelationshipManager", fields: [relationshipManagerId], references: [id])
+  owners              BeneficialOwner[]
+  signatories         AuthorisedSignatory[]
+  declaration         InvestorDeclaration?
+  accounts            InvestmentAccount[]
+  portfolios          Portfolio[]
+  commitments         Commitment[]
+  documents           Document[]
+
+  @@index([status])
+  @@index([kycStatus])
+}
+
+model InvestorApplication {
+  id               String            @id @default(cuid())
+  reference        String            @unique // APP-2026-0001
+  status           ApplicationStatus @default(DRAFT)
+  step             Int               @default(0)
+  version          Int               @default(1)
+  resumeTokenHash  String?
+  payload          Json              @default("{}")
+  // denormalised for registers/search
+  legalName        String?
+  investorType     InvestorType?
+  country          String?
+  contactName      String?
+  contactEmail     String?
+  riskFlags        String[]
+  consentAt        DateTime?
+  signatureName    String?
+  submittedAt      DateTime?
+  lastSavedAt      DateTime          @default(now())
+  assignedReviewerId String?
+  decidedById      String?
+  decidedAt        DateTime?
+  decisionReason   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  investor     Investor?
+  owners       BeneficialOwner[]
+  signatories  AuthorisedSignatory[]
+  declaration  InvestorDeclaration?
+  notes        ApplicationNote[]
+  documents    Document[]
+
+  @@index([status])
+  @@index([submittedAt])
+}
+
+model BeneficialOwner {
+  id               String   @id @default(cuid())
+  applicationId    String?
+  investorId       String?
+  fullName         String
+  ownershipPercent Decimal  @db.Decimal(9, 4)
+  nationality      String
+  idReference      String
+  email            String?
+  phone            String?
+  isController     Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  application InvestorApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  investor    Investor?            @relation(fields: [investorId], references: [id])
+
+  @@index([applicationId])
+  @@index([investorId])
+}
+
+model AuthorisedSignatory {
+  id            String   @id @default(cuid())
+  applicationId String?
+  investorId    String?
+  fullName      String
+  role          String
+  email         String
+  authority     String?
+  createdAt     DateTime @default(now())
+
+  application InvestorApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  investor    Investor?            @relation(fields: [investorId], references: [id])
+
+  @@index([applicationId])
+  @@index([investorId])
+}
+
+model InvestorDeclaration {
+  id                   String            @id @default(cuid())
+  applicationId        String            @unique
+  investorId           String?           @unique
+  pep                  DeclarationAnswer
+  sanctions            DeclarationAnswer
+  adverseMedia         DeclarationAnswer
+  highRiskJurisdiction DeclarationAnswer
+  sourceOfFunds        String
+  sourceOfWealth       String
+  expectedActivity     String
+  transactionFrequency String?
+  riskNarrative        String?
+  taxResidency         String
+  fatca                String
+  crs                  String
+  usIndicia            Boolean           @default(false)
+  bankName             String
+  bankAccountHolder    String
+  bankAccountNumber    String
+  bankCurrency         String
+  swiftBic             String
+  consentGiven         Boolean
+  consentAt            DateTime
+  signatureName        String
+  riskFlags            String[]
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  application InvestorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  investor    Investor?           @relation(fields: [investorId], references: [id])
+}
+
+model ApplicationNote {
+  id            String   @id @default(cuid())
+  applicationId String
+  authorId      String? // null = applicant
+  authorName    String?
+  kind          NoteKind @default(NOTE)
+  body          String
+  createdAt     DateTime @default(now())
+
+  application InvestorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+}
+
+// ═══════════════════════════════ DOCUMENTS ═══════════════════════════════
+
+model Document {
+  id               String           @id @default(cuid())
+  ref              String           @unique // DOC-000001
+  title            String
+  category         DocumentCategory
+  status           DocumentStatus   @default(UPLOADED)
+  audience         DocumentAudience @default(INTERNAL)
+  ownerOrgId       String? // org that owns/uploaded it (company, custodian)
+  investorId       String?
+  portfolioId      String?
+  companyId        String?
+  applicationId    String?
+  submissionId     String? // company reporting submission
+  fundId           String?
+  capitalCallId    String?
+  requirementKey   String? // onboarding slot id / reporting-pack file key
+  reportDate       DateTime? @db.Date
+  currentVersionNo Int              @default(1)
+  createdById      String?
+  approvedById     String?
+  approvedAt       DateTime?
+  publishedById    String?
+  publishedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  ownerOrg     Organisation?        @relation(fields: [ownerOrgId], references: [id])
+  investor     Investor?            @relation(fields: [investorId], references: [id])
+  portfolio    Portfolio?           @relation(fields: [portfolioId], references: [id])
+  company      PortfolioCompany?    @relation(fields: [companyId], references: [id])
+  application  InvestorApplication? @relation(fields: [applicationId], references: [id])
+  submission   CompanyReportingSubmission? @relation(fields: [submissionId], references: [id])
+  fund         Fund?                @relation(fields: [fundId], references: [id])
+  versions     DocumentVersion[]
+
+  @@index([investorId, status])
+  @@index([applicationId])
+  @@index([companyId])
+  @@index([submissionId])
+  @@index([ownerOrgId])
+  @@index([category])
+}
+
+model DocumentVersion {
+  id            String   @id @default(cuid())
+  documentId    String
+  versionNo     Int
+  fileName      String
+  mimeType      String
+  sizeBytes     Int
+  sha256        String
+  storageDriver String // local | s3 | db
+  storageKey    String
+  note          String?
+  uploadedById  String?
+  uploadedByName String?
+  createdAt     DateTime @default(now())
+
+  document Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  blob     DocumentBlob?
+
+  @@unique([documentId, versionNo])
+}
+
+/// Only used when STORAGE_DRIVER=db (fallback so documents survive on hosts with ephemeral disks).
+model DocumentBlob {
+  versionId String          @id
+  data      Bytes
+  version   DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════ INVESTMENT MANAGEMENT ═══════════════════════════════
+
+model Security {
+  id         String     @id @default(cuid())
+  ticker     String     @unique
+  name       String
+  isin       String?
+  assetClass AssetClass
+  currency   String     @default("USD")
+  exchange   String?
+  lastPrice  Decimal    @default(0) @db.Decimal(20, 6)
+  priceDate  DateTime   @default(now()) @db.Date
+  priceSource String    @default("Seed")
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  holdings     Holding[]
+  transactions InvestmentTransaction[]
+
+  @@index([assetClass])
+}
+
+model Fund {
+  id             String   @id @default(cuid())
+  ref            String   @unique
+  name           String
+  type           FundType
+  currency       String   @default("USD")
+  vintage        Int?
+  description    String?
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  commitments Commitment[]
+  accounts    InvestmentAccount[]
+  documents   Document[]
+}
+
+model InvestmentAccount {
+  id           String      @id @default(cuid())
+  ref          String      @unique
+  investorId   String
+  name         String
+  type         AccountType @default(MANDATE)
+  baseCurrency String      @default("USD")
+  fundId       String?
+  status       String      @default("ACTIVE")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  createdById  String?
+
+  investor   Investor    @relation(fields: [investorId], references: [id])
+  fund       Fund?       @relation(fields: [fundId], references: [id])
+  portfolios Portfolio[]
+  commitments Commitment[]
+
+  @@index([investorId])
+}
+
+model Portfolio {
+  id            String          @id @default(cuid())
+  ref           String          @unique // BGF-001
+  name          String
+  investorId    String
+  accountId     String?
+  type          PortfolioType   @default(MANAGED_ACCOUNT)
+  baseCurrency  String          @default("USD")
+  managerId     String?
+  benchmark     String?
+  inceptionDate DateTime        @db.Date
+  status        PortfolioStatus @default(ACTIVE)
+  description   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  createdById   String?
+
+  investor     Investor            @relation(fields: [investorId], references: [id])
+  account      InvestmentAccount?  @relation(fields: [accountId], references: [id])
+  manager      User?               @relation("PortfolioManager", fields: [managerId], references: [id])
+  holdings     Holding[]
+  transactions InvestmentTransaction[]
+  valuations   PortfolioValuation[]
+  custodianAccount CustodianAccount?
+  documents    Document[]
+  reconItems   ReconciliationItem[]
+
+  @@index([investorId])
+  @@index([status])
+}
+
+model Holding {
+  id            String        @id @default(cuid())
+  portfolioId   String
+  securityId    String
+  quantity      Decimal       @db.Decimal(24, 6)
+  averageCost   Decimal       @db.Decimal(20, 6)
+  currentPrice  Decimal       @db.Decimal(20, 6)
+  currency      String        @default("USD")
+  marketValue   Decimal       @db.Decimal(20, 2) // quantity × currentPrice (simplified MVP model)
+  valuationDate DateTime      @db.Date
+  source        HoldingSource @default(MANUAL)
+  priceSource   String?
+  status        HoldingStatus @default(DRAFT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  createdById   String?
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  security  Security  @relation(fields: [securityId], references: [id])
+
+  @@unique([portfolioId, securityId])
+  @@index([portfolioId])
+}
+
+model InvestmentTransaction {
+  id             String            @id @default(cuid())
+  ref            String            @unique // TXN-000001
+  tradeReference String?
+  portfolioId    String
+  securityId     String?
+  type           TransactionType   @default(TRADE)
+  side           Side?
+  quantity       Decimal           @default(0) @db.Decimal(24, 6)
+  price          Decimal           @default(0) @db.Decimal(20, 6)
+  amount         Decimal           @db.Decimal(20, 2) // gross consideration
+  currency       String            @default("USD")
+  tradeDate      DateTime          @db.Date
+  settlementDate DateTime?         @db.Date
+  broker         String?
+  notes          String?
+  status         TransactionStatus @default(COMPLETED)
+  createdById    String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  portfolio Portfolio  @relation(fields: [portfolioId], references: [id])
+  security  Security?  @relation(fields: [securityId], references: [id])
+  reconItem ReconciliationItem?
+
+  @@unique([portfolioId, tradeReference])
+  @@index([portfolioId, tradeDate])
+  @@index([status])
+}
+
+/// Simple NAV time series used for performance charts (MVP: not a valuation engine).
+model PortfolioValuation {
+  id             String   @id @default(cuid())
+  portfolioId    String
+  asOf           DateTime @db.Date
+  nav            Decimal  @db.Decimal(20, 2)
+  benchmarkIndex Decimal? @db.Decimal(14, 4)
+  source         String   @default("Seed")
+  createdAt      DateTime @default(now())
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, asOf])
+}
+
+// ═══════════════════════════════ CAPITAL ═══════════════════════════════
+
+model Commitment {
+  id                String   @id @default(cuid())
+  fundId            String
+  investorId        String
+  accountId         String?
+  amount            Decimal  @db.Decimal(20, 2)
+  calledAmount      Decimal  @default(0) @db.Decimal(20, 2)
+  distributedAmount Decimal  @default(0) @db.Decimal(20, 2)
+  nav               Decimal  @default(0) @db.Decimal(20, 2)
+  irr               Decimal? @db.Decimal(9, 4) // administrator-reported (seeded)
+  tvpi              Decimal? @db.Decimal(9, 4)
+  dpi               Decimal? @db.Decimal(9, 4)
+  asOf              DateTime @db.Date
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  fund     Fund               @relation(fields: [fundId], references: [id])
+  investor Investor           @relation(fields: [investorId], references: [id])
+  account  InvestmentAccount? @relation(fields: [accountId], references: [id])
+  events   CapitalCall[]
+
+  @@unique([fundId, investorId])
+}
+
+model CapitalCall {
+  id                  String             @id @default(cuid())
+  ref                 String             @unique // CC-2026-03
+  commitmentId        String
+  kind                CapitalEventKind   @default(CALL)
+  amount              Decimal            @db.Decimal(20, 2)
+  issueDate           DateTime           @db.Date
+  dueDate             DateTime?          @db.Date
+  status              CapitalEventStatus @default(ISSUED)
+  fundingAccountMasked String?
+  noticeDocumentId    String?
+  createdById         String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  commitment      Commitment                   @relation(fields: [commitmentId], references: [id])
+  acknowledgements CapitalCallAcknowledgement[]
+
+  @@index([commitmentId])
+  @@index([status, dueDate])
+}
+
+/// An acknowledgement is NOT proof of payment: it never changes Commitment.calledAmount.
+model CapitalCallAcknowledgement {
+  id             String   @id @default(cuid())
+  capitalCallId  String
+  userId         String
+  note           String?
+  acknowledgedAt DateTime @default(now())
+
+  capitalCall CapitalCall @relation(fields: [capitalCallId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@unique([capitalCallId, userId])
+}
+
+// ═══════════════════════════════ CUSTODIAN ═══════════════════════════════
+
+model CustodianAccount {
+  id             String   @id @default(cuid())
+  custodianOrgId String
+  accountNumber  String   @unique // BGF-001
+  name           String
+  portfolioId    String?  @unique
+  currency       String   @default("USD")
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+
+  custodianOrg Organisation @relation(fields: [custodianOrgId], references: [id])
+  portfolio    Portfolio?   @relation(fields: [portfolioId], references: [id])
+  executions   CustodianExecution[]
+  dayEnds      CustodianDayEndSubmission[]
+
+  @@index([custodianOrgId])
+}
+
+/// Immutable once submitted. Corrections create version+1 and mark the prior row isCurrent=false.
+model CustodianExecution {
+  id                 String      @id @default(cuid())
+  ref                String      @unique // SUB-EX-000001
+  custodianAccountId String
+  tradeReference     String
+  version            Int         @default(1)
+  isCurrent          Boolean     @default(true)
+  supersedesId       String?
+  correctionReason   String?
+  executedAt         DateTime
+  ticker             String
+  securityId         String?
+  side               Side
+  quantity           Decimal     @db.Decimal(24, 6)
+  price              Decimal     @db.Decimal(20, 6)
+  currency           String
+  settlementDate     DateTime    @db.Date
+  broker             String
+  note               String?
+  reconStatus        ReconStatus @default(NOT_STARTED)
+  rawPayload         Json // original source values as submitted
+  submittedById      String
+  submittedByName    String?
+  createdAt          DateTime    @default(now())
+
+  custodianAccount CustodianAccount     @relation(fields: [custodianAccountId], references: [id])
+  reconItem        ReconciliationItem?
+
+  @@unique([custodianAccountId, tradeReference, version])
+  @@index([isCurrent, reconStatus])
+  @@index([createdAt])
+}
+
+model CustodianDayEndSubmission {
+  id                  String      @id @default(cuid())
+  ref                 String      @unique // SUB-DE-000001
+  custodianAccountId  String
+  statementDate       DateTime    @db.Date
+  version             Int         @default(1)
+  isCurrent           Boolean     @default(true)
+  closingCash         Decimal     @db.Decimal(20, 2)
+  currency            String
+  holdingsMarketValue Decimal     @db.Decimal(20, 2)
+  tradeCount          Int
+  documentId          String?
+  fileName            String?
+  fileSha256          String?
+  controlNote         String?
+  reconStatus         ReconStatus @default(NOT_STARTED)
+  rawPayload          Json
+  submittedById       String
+  submittedByName     String?
+  createdAt           DateTime    @default(now())
+
+  custodianAccount CustodianAccount     @relation(fields: [custodianAccountId], references: [id])
+  reconItem        ReconciliationItem?
+
+  @@unique([custodianAccountId, statementDate, version])
+  @@index([isCurrent, reconStatus])
+}
+
+// ═══════════════════════════════ RECONCILIATION ═══════════════════════════════
+
+model ReconciliationBatch {
+  id           String      @id @default(cuid())
+  ref          String      @unique // REC-2026-0001
+  businessDate DateTime    @unique @db.Date
+  status       BatchStatus @default(OPEN)
+  summary      Json        @default("{}")
+  createdById  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  completedAt  DateTime?
+
+  items ReconciliationItem[]
+}
+
+model ReconciliationItem {
+  id               String        @id @default(cuid())
+  batchId          String
+  kind             ReconItemKind
+  status           ReconStatus   @default(PENDING_REVIEW)
+  executionId      String?       @unique // each custodian record reconciled once (re-runs update in place)
+  dayEndId         String?       @unique
+  transactionId    String?       @unique // each internal transaction consumed once
+  portfolioId      String?
+  tradeReference   String?
+  ticker           String?
+  quantity         Decimal?      @db.Decimal(24, 6)
+  price            Decimal?      @db.Decimal(20, 6)
+  currency         String?
+  matchKey         String?
+  sourceSnapshot   Json? // original custodian values (never overwritten)
+  internalSnapshot Json?
+  differences      Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  batch       ReconciliationBatch        @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  execution   CustodianExecution?        @relation(fields: [executionId], references: [id])
+  dayEnd      CustodianDayEndSubmission? @relation(fields: [dayEndId], references: [id])
+  transaction InvestmentTransaction?     @relation(fields: [transactionId], references: [id])
+  portfolio   Portfolio?                 @relation(fields: [portfolioId], references: [id])
+  exceptions  ReconciliationException[]
+
+  @@index([batchId, status])
+  @@index([status])
+}
+
+model ReconciliationException {
+  id             String          @id @default(cuid())
+  itemId         String
+  type           ExceptionType
+  description    String
+  expected       String?
+  actual         String?
+  status         ExceptionStatus @default(OPEN)
+  resolutionNote String?
+  resolvedById   String?
+  resolvedByName String?
+  resolvedAt     DateTime?
+  createdAt      DateTime        @default(now())
+
+  item ReconciliationItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([itemId])
+}
+
+// ═══════════════════════════════ PORTFOLIO COMPANIES ═══════════════════════════════
+
+model PortfolioCompany {
+  id             String   @id @default(cuid())
+  ref            String   @unique
+  organisationId String   @unique
+  name           String
+  sector         String?
+  country        String?
+  fundName       String? // investing fund (display)
+  description    String?
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation                @relation(fields: [organisationId], references: [id])
+  periods      ReportingPeriod[]
+  submissions  CompanyReportingSubmission[]
+  documents    Document[]
+}
+
+model ReportingPeriod {
+  id          String       @id @default(cuid())
+  companyId   String
+  label       String // "Aug 2026"
+  periodStart DateTime     @db.Date
+  periodEnd   DateTime     @db.Date
+  dueDate     DateTime     @db.Date
+  status      PeriodStatus @default(OPEN)
+  createdAt   DateTime     @default(now())
+
+  company      PortfolioCompany             @relation(fields: [companyId], references: [id])
+  requirements ReportingRequirement[]
+  submission   CompanyReportingSubmission?
+
+  @@unique([companyId, label])
+}
+
+model ReportingRequirement {
+  id          String              @id @default(cuid())
+  periodId    String
+  category    RequirementCategory
+  key         String // reporting-pack section key
+  title       String
+  description String?
+  isRequired  Boolean             @default(true)
+  status      RequirementStatus   @default(PENDING)
+  updatedAt   DateTime            @updatedAt
+
+  period ReportingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([periodId, key])
+}
+
+model CompanyReportingSubmission {
+  id                String                  @id @default(cuid())
+  ref               String                  @unique // CRS-2026-0001
+  periodId          String                  @unique
+  companyId         String
+  status            CompanySubmissionStatus @default(DRAFT)
+  version           Int                     @default(1)
+  completionPct     Int                     @default(0)
+  submittedAt       DateTime?
+  submittedById     String?
+  submittedByName   String?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  reviewedByName    String?
+  reviewNote        String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  period    ReportingPeriod          @relation(fields: [periodId], references: [id])
+  company   PortfolioCompany         @relation(fields: [companyId], references: [id])
+  values    CompanyReportingValue[]
+  questions CompanyReportingQuestion[]
+  documents Document[]
+
+  @@index([status])
+  @@index([companyId])
+}
+
+model CompanyReportingValue {
+  id           String   @id @default(cuid())
+  submissionId String
+  key          String
+  valueNumber  Decimal? @db.Decimal(24, 6)
+  valueText    String?
+  valueJson    Json?
+  updatedById  String?
+  updatedAt    DateTime @updatedAt
+
+  submission CompanyReportingSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, key])
+}
+
+model CompanyReportingQuestion {
+  id             String         @id @default(cuid())
+  submissionId   String
+  requirementKey String?
+  question       String
+  raisedById     String?
+  raisedByName   String?
+  answer         String?
+  answeredById   String?
+  answeredByName String?
+  answeredAt     DateTime?
+  status         QuestionStatus @default(OPEN)
+  createdAt      DateTime       @default(now())
+  closedAt       DateTime?
+
+  submission CompanyReportingSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, status])
+}
+
+// ═══════════════════════════════ SUPPORTING ═══════════════════════════════
+
+model Notification {
+  id             String    @id @default(cuid())
+  userId         String?
+  organisationId String?
+  type           String
+  title          String
+  body           String?
+  link           String?
+  entityType     String?
+  entityId       String?
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([organisationId, readAt])
+}
+
+/// Append-only. A database trigger rejects UPDATE/DELETE/TRUNCATE (see migration).
+model AuditEvent {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  actorId    String?
+  actorEmail String?
+  actorRole  String?
+  orgId      String?
+  entityType String
+  entityId   String?
+  action     String
+  before     Json?
+  after      Json?
+  metadata   Json?
+  ip         String?
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+/// Human-readable reference generator (INV-0001, APP-2026-0001, ...).
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
+
+/// Backs the Idempotency-Key header (safe retries / double-click protection).
+model IdempotencyRecord {
+  id           String   @id @default(cuid())
+  key          String
+  userId       String
+  method       String
+  path         String
+  state        String   @default("PENDING") // PENDING | DONE
+  statusCode   Int?
+  responseBody Json?
+  createdAt    DateTime @default(now())
+
+  @@unique([key, userId])
+  @@index([createdAt])
+}
