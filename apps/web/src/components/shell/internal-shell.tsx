@@ -27,9 +27,9 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
   const counts = useQuery({ queryKey: ['nav-counts'], queryFn: () => api<Counts>('/dashboard/nav-counts'), refetchInterval: 60_000, retry: false });
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-nav text-nav-ink">
-      <div className={cn('flex h-14 shrink-0 items-center border-b border-nav-line', collapsed ? 'justify-center' : 'px-4')}>
-        {collapsed ? <Monogram className="size-8" /> : <Wordmark inverted subtitle="Nexus · Asset Manager" />}
+    <div className="flex h-full min-h-0 flex-col bg-surface text-foreground">
+      <div className={cn('flex h-14 shrink-0 items-center border-b border-border', collapsed ? 'justify-center' : 'px-4')}>
+        {collapsed ? <Monogram className="size-8" /> : <Wordmark subtitle="Nexus · Asset Manager" />}
       </div>
       <nav className="nx-scroll min-h-0 flex-1 overflow-y-auto px-2.5 py-3" aria-label="Main">
         {INTERNAL_NAV.map((section) => {
@@ -37,7 +37,7 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
           if (!items.length) return null;
           return (
             <div key={section.label} className="mb-4">
-              {!collapsed ? <div className="px-2.5 pb-1.5 text-[9.5px] font-bold uppercase tracking-[0.12em] text-[#5d697a]">{section.label}</div> : <div className="mx-2 mb-1.5 h-px bg-nav-line" />}
+              {!collapsed ? <div className="px-2.5 pb-1.5 text-[9.5px] font-bold uppercase tracking-[0.12em] text-ink-3">{section.label}</div> : <div className="mx-2 mb-1.5 h-px bg-border" />}
               <ul className="space-y-0.5">
                 {items.map((item) => {
                   const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -53,17 +53,17 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
                       className={cn(
                         'group relative flex items-center rounded-md text-[12.5px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-nav-accent/60',
                         collapsed ? 'size-10 justify-center' : 'h-9 gap-3 px-2.5',
-                        isActive ? 'bg-nav-3 text-white' : 'text-[#aab4c3] hover:bg-nav-2 hover:text-white',
+                        isActive ? 'bg-primary-soft text-accent-foreground' : 'text-ink-2 hover:bg-surface-sunken hover:text-foreground',
                       )}
                     >
-                      {isActive && <span className="absolute -left-2.5 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-nav-accent" />}
-                      <item.icon className={cn('size-[17px] shrink-0', isActive ? 'text-white' : 'text-[#7f8b9c] group-hover:text-white')} strokeWidth={1.8} />
+                      {isActive && <span className="absolute -left-2.5 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-primary" />}
+                      <item.icon className={cn('size-[17px] shrink-0', isActive ? 'text-primary' : 'text-ink-3 group-hover:text-foreground')} strokeWidth={1.8} />
                       {!collapsed && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
                       {count ? (
                         collapsed ? (
-                          <span className="absolute right-1 top-1 size-2 rounded-full bg-nav-accent" />
+                          <span className="absolute right-1 top-1 size-2 rounded-full bg-primary" />
                         ) : (
-                          <span className="num rounded bg-[#2a3447] px-1.5 py-px text-[10.5px] font-bold text-[#cfd8e6]">{count}</span>
+                          <span className="num rounded bg-primary-soft px-1.5 py-px text-[10.5px] font-bold text-accent-foreground">{count}</span>
                         )
                       ) : null}
                     </Link>
@@ -75,9 +75,9 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
           );
         })}
       </nav>
-      <div className="shrink-0 border-t border-nav-line p-2.5">
-        {!collapsed && user && <div className="mb-1.5 truncate px-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#5d697a]">{user.organisation.name}</div>}
-        <UserMenu tone="dark" showName={!collapsed} align="start" />
+      <div className="shrink-0 border-t border-border p-2.5">
+        {!collapsed && user && <div className="mb-1.5 truncate px-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-3">{user.organisation.name}</div>}
+        <UserMenu showName={!collapsed} align="start" />
       </div>
     </div>
   );

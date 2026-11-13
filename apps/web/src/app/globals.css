@@ -3,16 +3,16 @@
 
 /* ══════════════════════════════════════════════════════════════════════════
    Matanho Nexus design tokens
-   Restrained financial-services palette: warm off-white canvas, white surfaces,
+   Restrained financial-services palette: cool off-white canvas, white surfaces,
    deep navy ink, charcoal navigation, one blue for interaction. Green / amber / red
    carry financial & workflow meaning only. No gradients, glow or glass.
    ══════════════════════════════════════════════════════════════════════════ */
 :root {
   /* canvas & surfaces */
-  --background: #f6f5f2;
+  --background: #f3f6fa;
   --surface: #ffffff;
   --surface-2: #faf9f7;
-  --surface-sunken: #f1f0ec;
+  --surface-sunken: #eef2f6;
 
   /* ink */
   --foreground: #0f1b2d;
@@ -21,9 +21,9 @@
   --ink-3: #8b94a1;
 
   /* lines */
-  --border: #e3e1db;
-  --border-soft: #eeece7;
-  --input: #d9d6ce;
+  --border: #dfe5ec;
+  --border-soft: #e9eef3;
+  --input: #cfd8e3;
 
   /* brand */
   --primary: #2457d6;

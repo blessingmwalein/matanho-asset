@@ -110,8 +110,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     <PortalContext.Provider value={ctx}>
       <div className="min-h-screen">
         {/* icon rail */}
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[78px] flex-col items-center border-r border-nav-line bg-nav md:flex">
-          <div className="grid h-[72px] w-full place-items-center border-b border-nav-line">
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[78px] flex-col items-center border-r border-border bg-surface md:flex">
+          <div className="grid h-[72px] w-full place-items-center border-b border-border">
             <Monogram className="size-8" />
           </div>
           <nav className="flex flex-1 flex-col gap-2 py-4" aria-label="Portal">
@@ -124,17 +124,17 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
                     href={n.href}
                     aria-label={n.label}
                     aria-current={active ? 'page' : undefined}
-                    className={cn('relative grid size-11 place-items-center rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-nav-accent/60', active ? 'bg-nav-3 text-white' : 'text-[#8f99a8] hover:bg-nav-2 hover:text-white')}
+                    className={cn('relative grid size-11 place-items-center rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40', active ? 'bg-primary-soft text-primary' : 'text-ink-3 hover:bg-surface-sunken hover:text-foreground')}
                   >
                     <Icon className="size-5" strokeWidth={1.7} />
-                    {active && <span className="absolute -right-[17px] top-1/2 h-[22px] w-[3px] -translate-y-1/2 rounded-l bg-nav-accent" />}
+                    {active && <span className="absolute -right-[17px] top-1/2 h-[22px] w-[3px] -translate-y-1/2 rounded-l bg-primary" />}
                   </Link>
                 </Tooltip>
               );
             })}
           </nav>
           <div className="pb-4">
-            <UserMenu tone="dark" align="start" />
+            <UserMenu align="start" />
           </div>
         </aside>
 

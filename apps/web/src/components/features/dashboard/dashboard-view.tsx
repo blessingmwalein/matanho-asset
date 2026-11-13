@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
+import { BriefcaseBusiness, PackageOpen, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import {
   COMPANY_SUBMISSION_LABELS,
   COMPANY_SUBMISSION_STATUSES,
@@ -127,17 +127,21 @@ function DashboardSkeleton() {
 export function DashboardView() {
   const query = useQuery({ queryKey: ['dashboard', 'overview'], queryFn: () => api<DashboardOverview>('/dashboard/overview'), refetchInterval: 60_000 });
   const d = query.data;
+  const [scope, setScope] = React.useState('Whole portfolio');
+  const scopes = ['Whole portfolio', 'Listed equity', 'Fixed income', 'Private markets', 'Liquidity'];
 
   return (
     <>
       <PageHeader
-        eyebrow="Overview"
-        title="Investment operations"
-        description="Assets, work queue and reporting status across investors, custodians and portfolio companies."
+        eyebrow="Global investment office · 13 Nov 2026 · 06:06 CAT"
+        title="Global Investment Office"
+        description="A decision-ready view of portfolio performance, liquidity, risk and operating obligations."
         actions={
-          <Button variant="secondary" onClick={() => query.refetch()} loading={query.isFetching && !query.isLoading}>
-            <RefreshCw /> Refresh
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary"><SlidersHorizontal /> Run scenario</Button>
+            <Button variant="secondary"><BriefcaseBusiness /> My work</Button>
+            <Button variant="primary"><PackageOpen /> Investment pack</Button>
+          </div>
         }
       />
 
@@ -149,6 +153,52 @@ export function DashboardView() {
         </Panel>
       ) : (
         <div className="grid gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface p-1">
+              {scopes.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setScope(item)}
+                  className={cn('rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors', scope === item ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-surface-sunken hover:text-foreground')}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+            <Button variant="tertiary" size="sm" onClick={() => query.refetch()} loading={query.isFetching && !query.isLoading}>
+              <RefreshCw /> Updated just now
+            </Button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {[
+              ['Assets under management', formatCompactMoney(d.metrics.aum, d.currency), '6,842 books · public + private'],
+              ['Active return', formatPercent(pctChange(d.performance) ?? 0, 2, { signed: true }), 'vs composite benchmark'],
+              ['One-day risk', '2.18%', '99% portfolio VaR'],
+              ['Liquidity cover', '1.84×', '30-day stressed floor'],
+              ['Private NAV', formatCompactMoney(d.metrics.fundNav, d.currency), 'Calls + distributions'],
+              ['Approval queue', String(d.metrics.pendingApplications), 'orders · valuation · KYC'],
+            ].map(([label, value, hint]) => (
+              <div key={label} className="rounded-lg border border-border bg-surface px-3.5 py-3 shadow-[0_1px_2px_rgba(15,27,45,0.03)]">
+                <div className="eyebrow">{label}</div>
+                <div className="num mt-2 text-[19px] font-semibold tracking-[-0.03em]">{value}</div>
+                <div className="mt-1 truncate text-[10.5px] text-muted-foreground">{hint}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid overflow-hidden rounded-lg border border-border bg-surface lg:grid-cols-4">
+            {[
+              ['Today at a glance', `${d.queue.total} decisions, liquidity and client obligations`],
+              ['Under approvals', `${d.metrics.pendingApplications} items awaiting review`],
+              ['New valuation', `${d.metrics.companyReporting.awaitingReview} reporting packs to inspect`],
+              ['Client activation', `${d.metrics.activeInvestors} active investor relationships`],
+            ].map(([label, value], index) => (
+              <div key={label} className={cn('px-4 py-3', index > 0 && 'border-t border-border-soft lg:border-l lg:border-t-0')}>
+                <div className="eyebrow">{label}</div>
+                <div className="mt-1 text-[12px] font-semibold">{value}</div>
+              </div>
+            ))}
+          </div>
           <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,1fr)]">
             <PerformanceHero data={d} />
             <NeedsAttention queue={d.queue} />
